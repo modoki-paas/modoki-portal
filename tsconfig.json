@@ -1,4 +1,4 @@
-{
+  {
   "compilerOptions": {
     "target": "ES2018",
     "module": "ESNext",
@@ -25,7 +25,8 @@
     },
     "types": [
       "@types/node",
-      "@nuxt/types"
+      "@nuxt/types",
+      "@modoki-paas/kubernetes-fetch-client/types"
     ]
   },
   "exclude": [

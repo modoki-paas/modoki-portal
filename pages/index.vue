@@ -80,14 +80,35 @@
   </v-layout>
 </template>
 
-<script>
+<script lang="ts">
 import Logo from '~/components/Logo.vue'
 import VuetifyLogo from '~/components/VuetifyLogo.vue'
+import { AppsV1Api, Configuration, ConfigurationParameters } from "@modoki-paas/kubernetes-fetch-client";
 
 export default {
   components: {
     Logo,
     VuetifyLogo,
   },
+
+
+  async created() {
+    const fetch = async (url: string, opt: {}): Promise<any> => {
+      console.log(url);
+      console.log(opt);
+      return "";
+    }
+
+    const conf = new Configuration({
+      fetchApi: fetch,
+    } as ConfigurationParameters)
+
+    const appsClient = new AppsV1Api(conf);
+    (await appsClient.listNamespacedDeployment({
+      namespace: "modoki-operator-system",
+    })).items.forEach(dpl => {
+      console.log(JSON.stringify(dpl))
+    })
+  }
 }
 </script>
