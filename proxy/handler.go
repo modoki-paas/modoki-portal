@@ -2,13 +2,21 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/gob"
+	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 
 	"github.com/coreos/go-oidc"
 	"github.com/gorilla/sessions"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd/api"
 )
 
 const (
@@ -16,23 +24,107 @@ const (
 )
 
 type handler struct {
-	store *sessions.CookieStore
+	cfg       *Config
+	store     *sessions.CookieStore
+	transport http.RoundTripper
 }
 
-func newHandler(secret string) *handler {
+func newHandler(cfg *Config) (*handler, error) {
 	h := &handler{
-		store: sessions.NewCookieStore([]byte(secret)),
+		cfg:   cfg,
+		store: sessions.NewCookieStore([]byte(cfg.SessionStoreSecret)),
 	}
 	gob.Register(map[string]interface{}{})
 
-	return h
+	caDataRaw, err := base64.StdEncoding.DecodeString(cfg.CAData)
+
+	if err != nil {
+		return nil, err
+	}
+
+	roots := x509.NewCertPool()
+	ok := roots.AppendCertsFromPEM(caDataRaw)
+	if !ok {
+		return nil, fmt.Errorf("invalid cerificate for CA")
+	}
+
+	tlsConf := &tls.Config{RootCAs: roots}
+	h.transport = &http.Transport{
+		TLSClientConfig: tlsConf,
+	}
+
+	return h, nil
 }
 
 func (h *handler) proxyHandler(rw http.ResponseWriter, req *http.Request) {
+	session, err := h.store.Get(req, cookieKey)
 
+	if err != nil {
+		rw.Write([]byte(`{"message": "not signed in"}`))
+		rw.WriteHeader(http.StatusUnauthorized)
+
+		return
+	}
+
+	idToken := session.Values["id_token"].(string)
+	refreshToken := session.Values["refresh_token"].(string)
+
+	provider, err := restclient.GetAuthProvider(h.cfg.ClusterAddress, &api.AuthProviderConfig{
+		Name: "oidc",
+		Config: map[string]string{
+			"idp-issuer-url": h.cfg.IssuerURL,
+			"client-id":      h.cfg.ClientID,
+			"client-secret":  h.cfg.ClientSecret,
+			"id-token":       idToken,
+			"refresh-token":  refreshToken,
+		},
+	}, NewCookieConfigPersister(session, rw, req))
+
+	if err != nil {
+		log.Printf("GetAuthProvider failed: %+v", err)
+
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	transport := provider.WrapTransport(h.transport)
+
+	innerReq := &Request{}
+	if err := json.NewDecoder(req.Body).Decode(innerReq); err != nil {
+		rw.Write([]byte(`{"message": "invalid request"}`))
+		rw.WriteHeader(http.StatusBadRequest)
+
+		return
+	}
+
+	resp, err := NewProxy(
+		h.cfg.ClusterAddress,
+		&http.Client{
+			Transport: transport,
+		},
+	).Run(innerReq)
+
+	if err != nil {
+		rw.Write([]byte(`{"message": "internal server error"}`))
+		rw.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+	defer resp.Body.Close()
+
+	for k, vals := range resp.Header {
+		for _, v := range vals {
+			rw.Header().Add(k, v)
+		}
+	}
+
+	rw.WriteHeader(resp.StatusCode)
+	io.Copy(rw, resp.Body)
 }
 
 func (h *handler) loginHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	// Generate random state
 	b := make([]byte, 32)
 	_, err := rand.Read(b)
@@ -54,7 +146,7 @@ func (h *handler) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authenticator, err := NewAuthenticator()
+	authenticator, err := NewAuthenticator(ctx, h.cfg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -77,7 +169,7 @@ func (h *handler) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authenticator, err := NewAuthenticator()
+	authenticator, err := NewAuthenticator(ctx, h.cfg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -97,7 +189,7 @@ func (h *handler) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	oidcConfig := &oidc.Config{
-		ClientID: config.ClientID,
+		ClientID: h.cfg.ClientID,
 	}
 
 	idToken, err := authenticator.Provider.Verifier(oidcConfig).Verify(ctx, rawIDToken)
