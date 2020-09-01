@@ -32,10 +32,6 @@ type handler struct {
 func newHandler(cfg *Config) (*handler, error) {
 	store := sessions.NewCookieStore([]byte(cfg.SessionStoreSecret))
 
-	if cfg.Local {
-		store.Options.SameSite = http.SameSiteNoneMode
-	}
-
 	h := &handler{
 		cfg:   cfg,
 		store: store,
