@@ -20,6 +20,7 @@ type Config struct {
 	RedirectURL        string
 	IssuerURL          string
 	SessionStoreSecret string
+	StaticFilesDir     string
 }
 
 func initConfig() *Config {
@@ -33,6 +34,7 @@ func initConfig() *Config {
 	config.RedirectURL = os.Getenv("OIDC_REDIRECT_URL")
 	config.IssuerURL = os.Getenv("OIDC_ISSUER_URL")
 	config.SessionStoreSecret = os.Getenv("SESSION_STORE_SECRET")
+	config.StaticFilesDir = os.Getenv("STATIC_FILE_SERVING")
 
 	if config.SessionStoreSecret == "" {
 		config.SessionStoreSecret = "very-secure-secret"
@@ -79,6 +81,10 @@ func main() {
 	http.HandleFunc("/proxy", handler.proxyHandler)
 	http.HandleFunc("/login", handler.loginHandler)
 	http.HandleFunc("/callback", handler.callbackHandler)
+
+	if len(config.StaticFilesDir) != 0 {
+		http.Handle("/", http.FileServer(http.Dir(config.StaticFilesDir)))
+	}
 
 	port := os.Getenv("PORT")
 

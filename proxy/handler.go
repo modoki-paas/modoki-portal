@@ -36,19 +36,23 @@ func newHandler(cfg *Config) (*handler, error) {
 	}
 	gob.Register(map[string]interface{}{})
 
-	caDataRaw, err := base64.StdEncoding.DecodeString(cfg.CAData)
+	var tlsConf *tls.Config
+	if len(cfg.CAData) != 0 {
+		caDataRaw, err := base64.StdEncoding.DecodeString(cfg.CAData)
 
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
+
+		roots := x509.NewCertPool()
+		ok := roots.AppendCertsFromPEM(caDataRaw)
+		if !ok {
+			return nil, fmt.Errorf("invalid cerificate for CA")
+		}
+
+		tlsConf = &tls.Config{RootCAs: roots}
 	}
 
-	roots := x509.NewCertPool()
-	ok := roots.AppendCertsFromPEM(caDataRaw)
-	if !ok {
-		return nil, fmt.Errorf("invalid cerificate for CA")
-	}
-
-	tlsConf := &tls.Config{RootCAs: roots}
 	h.transport = &http.Transport{
 		TLSClientConfig: tlsConf,
 	}
@@ -91,8 +95,8 @@ func (h *handler) proxyHandler(rw http.ResponseWriter, req *http.Request) {
 
 	innerReq := &Request{}
 	if err := json.NewDecoder(req.Body).Decode(innerReq); err != nil {
-		rw.Write([]byte(`{"message": "invalid request"}`))
 		rw.WriteHeader(http.StatusBadRequest)
+		http.Error(rw, `{"message": "invalid request"}`, http.StatusBadRequest)
 
 		return
 	}
@@ -105,8 +109,7 @@ func (h *handler) proxyHandler(rw http.ResponseWriter, req *http.Request) {
 	).Run(innerReq)
 
 	if err != nil {
-		rw.Write([]byte(`{"message": "internal server error"}`))
-		rw.WriteHeader(http.StatusInternalServerError)
+		http.Error(rw, `{"message": "internal server error"}`, http.StatusInternalServerError)
 
 		return
 	}

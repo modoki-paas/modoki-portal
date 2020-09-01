@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net/http"
 	"net/url"
+	"path"
 )
 
 type Request struct {
@@ -41,7 +42,7 @@ func (p *Proxy) Run(rawReq *Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	url.RawPath = innerURL.RawPath
+	url.Path = path.Join(url.Path, innerURL.Path)
 
 	req, err := http.NewRequest(rawReq.Method, url.String(), bytes.NewReader(rawReq.Body))
 
