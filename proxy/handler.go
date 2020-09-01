@@ -30,9 +30,15 @@ type handler struct {
 }
 
 func newHandler(cfg *Config) (*handler, error) {
+	store := sessions.NewCookieStore([]byte(cfg.SessionStoreSecret))
+
+	if cfg.Local {
+		store.Options.SameSite = http.SameSiteNoneMode
+	}
+
 	h := &handler{
 		cfg:   cfg,
-		store: sessions.NewCookieStore([]byte(cfg.SessionStoreSecret)),
+		store: store,
 	}
 	gob.Register(map[string]interface{}{})
 
@@ -70,8 +76,14 @@ func (h *handler) proxyHandler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	idToken := session.Values["id_token"].(string)
-	refreshToken := session.Values["refresh_token"].(string)
+	idToken := getParam(session, "id_token")
+	refreshToken := getParam(session, "refresh_token")
+
+	if len(idToken)+len(refreshToken) == 0 {
+		http.Redirect(rw, req, "/login", http.StatusFound)
+
+		return
+	}
 
 	provider, err := restclient.GetAuthProvider(h.cfg.ClusterAddress, &api.AuthProviderConfig{
 		Name: "oidc",
@@ -167,7 +179,9 @@ func (h *handler) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.URL.Query().Get("state") != session.Values["state"] {
+	fmt.Println(getParam(session, "state"), r.URL.Query().Get("state"))
+
+	if r.URL.Query().Get("state") != getParam(session, "state") {
 		http.Error(w, "Invalid state parameter", http.StatusBadRequest)
 		return
 	}

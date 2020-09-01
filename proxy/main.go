@@ -4,10 +4,13 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"strings"
 
 	"github.com/coreos/go-oidc"
+	"github.com/rs/cors"
 	"golang.org/x/oauth2"
 )
 
@@ -21,6 +24,8 @@ type Config struct {
 	IssuerURL          string
 	SessionStoreSecret string
 	StaticFilesDir     string
+	ReverseProxy       string
+	Local              bool
 }
 
 func initConfig() *Config {
@@ -35,6 +40,8 @@ func initConfig() *Config {
 	config.IssuerURL = os.Getenv("OIDC_ISSUER_URL")
 	config.SessionStoreSecret = os.Getenv("SESSION_STORE_SECRET")
 	config.StaticFilesDir = os.Getenv("STATIC_FILE_SERVING")
+	config.ReverseProxy = os.Getenv("REVERSE_PROXY")
+	config.Local = os.Getenv("LOCAL") != ""
 
 	if config.SessionStoreSecret == "" {
 		config.SessionStoreSecret = "very-secure-secret"
@@ -72,18 +79,28 @@ func NewAuthenticator(ctx context.Context, config *Config) (*Authenticator, erro
 func main() {
 	config := initConfig()
 
-	handler, err := newHandler(config)
+	h, err := newHandler(config)
 
 	if err != nil {
 		panic(err)
 	}
 
-	http.HandleFunc("/proxy", handler.proxyHandler)
-	http.HandleFunc("/login", handler.loginHandler)
-	http.HandleFunc("/callback", handler.callbackHandler)
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/proxy", h.proxyHandler)
+	mux.HandleFunc("/login", h.loginHandler)
+	mux.HandleFunc("/callback", h.callbackHandler)
 
 	if len(config.StaticFilesDir) != 0 {
-		http.Handle("/", http.FileServer(http.Dir(config.StaticFilesDir)))
+		mux.Handle("/", http.FileServer(http.Dir(config.StaticFilesDir)))
+	} else if len(config.ReverseProxy) != 0 {
+		u, err := url.Parse(config.ReverseProxy)
+
+		if err != nil {
+			panic(err)
+		}
+
+		mux.Handle("/", httputil.NewSingleHostReverseProxy(u))
 	}
 
 	port := os.Getenv("PORT")
@@ -92,5 +109,10 @@ func main() {
 		port = "80"
 	}
 
-	http.ListenAndServe(":"+port, nil)
+	var handler http.Handler = mux
+	if config.Local {
+		handler = cors.AllowAll().Handler(mux)
+	}
+
+	http.ListenAndServe(":"+port, handler)
 }
