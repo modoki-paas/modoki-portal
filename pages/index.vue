@@ -83,7 +83,8 @@
 <script lang="ts">
 import Logo from '~/components/Logo.vue'
 import VuetifyLogo from '~/components/VuetifyLogo.vue'
-import { AppsV1Api, Configuration, ConfigurationParameters } from "@modoki-paas/kubernetes-fetch-client";
+import { fetch } from "~/util/proxy";
+import { AppsV1Api, Configuration, ConfigurationParameters, ModokiTsuzuDevV1alpha1Api } from "@modoki-paas/kubernetes-fetch-client";
 
 export default {
   components: {
@@ -93,22 +94,23 @@ export default {
 
 
   async created() {
-    const fetch = async (url: string, opt: {}): Promise<any> => {
-      console.log(url);
-      console.log(opt);
-      return "";
-    }
-
     const conf = new Configuration({
       fetchApi: fetch,
-    } as ConfigurationParameters)
-
-    const appsClient = new AppsV1Api(conf);
-    (await appsClient.listNamespacedDeployment({
-      namespace: "modoki-operator-system",
-    })).items.forEach(dpl => {
-      console.log(JSON.stringify(dpl))
     })
+
+    const modokiApi = new ModokiTsuzuDevV1alpha1Api(conf);
+
+    (await modokiApi.listApplicationForAllNamespaces({})).items.forEach(x => {
+      console.log(x.metadata?.namespace, x.metadata?.name, JSON.stringify(x.spec))
+    })
+
+    // const appsClient = new AppsV1Api(conf);
+    // (await appsClient.listNamespacedDeployment({
+    //   namespace: "modoki-operator-system",
+    // })).items.forEach(dpl => {
+    //   console.log(JSON.stringify(dpl))
+    // })
   }
 }
+
 </script>
