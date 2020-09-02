@@ -1,97 +1,100 @@
 <template>
-  <v-layout column justify-center align-center>
-    <v-flex xs12 sm8 md6>
-      <div class="text-center">
-        <logo />
-        <vuetify-logo />
-      </div>
-      <v-card>
-        <v-card-title class="headline">
-          Welcome to the Vuetify + Nuxt.js template
-        </v-card-title>
-        <v-card-text>
-          <p>
-            Vuetify is a progressive Material Design component framework for
-            Vue.js. It was designed to empower developers to create amazing
-            applications.
-          </p>
-          <p>
-            For more information on Vuetify, check out the
-            <a
-              href="https://vuetifyjs.com"
-              target="_blank"
-              rel="noopener noreferrer"
+  <v-container>
+    <v-row dense>
+      <v-col cols="12">
+        <p class="text-h4">Apps</p>
+      </v-col>
+    </v-row>
+    <!-- <v-row>
+      <v-col cols="12">
+        <v-simple-table>
+          <template v-slot:default>
+            <thead>
+              <tr>
+                <th class="text-left">Name</th>
+                <th class="text-right">Domain</th>
+                <th class="text-left">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="app in apps" :key="app.metadata.name">
+                <td> {{app.metadata.name}}</td>
+                <td class="text-right" v-if="app.status.domains.length === 0"> No domain</td>
+                <td class="text-right" v-else-if="app.status.domains.length === 1"> {{app.status.domains[0]}}</td>
+                <td class="text-right" v-else>{{app.status.domains.join(", ")}}</td>
+                <td> {{app.status.status}}</td>
+              </tr>
+            </tbody>
+          </template>
+        </v-simple-table>
+      </v-col>
+    </v-row> -->
+    <v-row>
+      <v-col cols="12">
+              <v-data-table
+          item-key="spec.name"
+          :headers="headers"
+          :items="apps"
+          mobile-breakpoint="0"
+        >
+          <template v-slot:[`item.actions`]="{ item }">
+            <v-icon
+              class="mr-2"
             >
-              documentation </a
-            >.
-          </p>
-          <p>
-            If you have questions, please join the official
-            <a
-              href="https://chat.vuetifyjs.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="chat"
+              mdi-open-in-new
+            </v-icon>
+            <v-icon
+              class="mr-2"
             >
-              discord </a
-            >.
-          </p>
-          <p>
-            Find a bug? Report it on the github
-            <a
-              href="https://github.com/vuetifyjs/vuetify/issues"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="contribute"
-            >
-              issue board </a
-            >.
-          </p>
-          <p>
-            Thank you for developing with Vuetify and I look forward to bringing
-            more exciting features in the future.
-          </p>
-          <div class="text-xs-right">
-            <em><small>&mdash; John Leider</small></em>
-          </div>
-          <hr class="my-3" />
-          <a
-            href="https://nuxtjs.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Nuxt Documentation
-          </a>
-          <br />
-          <a
-            href="https://github.com/nuxt/nuxt.js"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Nuxt GitHub
-          </a>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn color="primary" nuxt to="/inspire"> Continue </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-flex>
-  </v-layout>
+              mdi-dots-horizontal
+            </v-icon>
+          </template>
+        </v-data-table>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script lang="ts">
+import Vue from 'vue'
 import Logo from '~/components/Logo.vue'
 import VuetifyLogo from '~/components/VuetifyLogo.vue'
 import { fetch } from "~/util/proxy";
-import { AppsV1Api, Configuration, ConfigurationParameters, ModokiTsuzuDevV1alpha1Api } from "@modoki-paas/kubernetes-fetch-client";
+import { AppsV1Api, Configuration, ConfigurationParameters, ModokiTsuzuDevV1alpha1Api, DevTsuzuModokiV1alpha1Application } from "@modoki-paas/kubernetes-fetch-client";
 
-export default {
+export default Vue.extend({
   components: {
     Logo,
     VuetifyLogo,
   },
-
+  data() {
+    return {
+      apps: [],
+      headers: [
+        {
+          text: "Name",
+          value: "metadata.name",
+        },
+        {
+          text: "Domain",
+          value: "status.domains",
+          align: 'right'
+        },
+        {
+          text: "Status",
+          value: "status.status",
+          align: 'right'
+        },
+        {
+          text: "Actions",
+          value: "actions",
+          align: 'right'
+        },
+      ]
+    } as {
+      apps: DevTsuzuModokiV1alpha1Application[],
+    }
+  },
 
   async created() {
     const conf = new Configuration({
@@ -100,9 +103,14 @@ export default {
 
     const modokiApi = new ModokiTsuzuDevV1alpha1Api(conf);
 
-    (await modokiApi.listApplicationForAllNamespaces({})).items.forEach(x => {
-      console.log(x.metadata?.namespace, x.metadata?.name, JSON.stringify(x.spec))
-    })
+    this.apps = (await modokiApi.listApplicationForAllNamespaces({})).items;
+    // this.apps[0].metadata.name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    // this.apps[0].status?.domains.push("foo.modoki.misw.jp");
+    // this.apps[0].status?.domains.push("bar.modoki.misw.jp");
+    // this.apps.push(this.apps[0]);
+    // this.apps.push(this.apps[0]);
+    // this.apps.push(this.apps[0]);
+    // this.apps.push(this.apps[0]);
 
     // const appsClient = new AppsV1Api(conf);
     // (await appsClient.listNamespacedDeployment({
@@ -111,6 +119,11 @@ export default {
     //   console.log(JSON.stringify(dpl))
     // })
   }
-}
-
+})
 </script>
+
+<style>
+.text-end {
+  text-align: end;
+}
+</style>
