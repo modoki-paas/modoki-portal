@@ -1,8 +1,12 @@
 <template>
   <v-container>
     <v-row dense>
-      <v-col cols="12">
-        <p class="text-h4">Apps</p>
+      <v-col cols="3">
+        <span class="text-h4">Apps</span>
+      </v-col>
+      <v-spacer></v-spacer>
+      <v-col style="text-align: right" cols="3">
+        <v-btn large>New App</v-btn>
       </v-col>
     </v-row>
     <!-- <v-row>
@@ -31,22 +35,19 @@
     </v-row> -->
     <v-row>
       <v-col cols="12">
-              <v-data-table
+        <v-data-table
           item-key="spec.name"
           :headers="headers"
           :items="apps"
           mobile-breakpoint="0"
+          @click:row="click"
         >
           <template v-slot:[`item.actions`]="{ item }">
             <v-icon
               class="mr-2"
+              @click.stop="openApp(item.spec.domains[0])"
             >
               mdi-open-in-new
-            </v-icon>
-            <v-icon
-              class="mr-2"
-            >
-              mdi-dots-horizontal
             </v-icon>
           </template>
         </v-data-table>
@@ -118,6 +119,24 @@ export default Vue.extend({
     // })).items.forEach(dpl => {
     //   console.log(JSON.stringify(dpl))
     // })
+  },
+  mounted() {
+    this.$nuxt.$emit(
+      "headerInfo", {
+        title: "modoki portal",
+        prev: undefined,
+        tabs: [],
+      }
+    )
+  },
+  methods: {
+    click(item: any) {
+      console.log(item);
+      this.$router.push(`/app/${item.metadata.name}`)
+    },
+    openApp(domain: string) {
+      window.open("http://" + domain, '_blank');
+    },
   }
 })
 </script>
