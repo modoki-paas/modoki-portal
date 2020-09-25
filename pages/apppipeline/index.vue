@@ -2,11 +2,11 @@
   <v-container>
     <v-row dense>
       <v-col cols="3">
-        <span class="text-h4">Apps</span>
+        <span class="text-h4">AppPipeline</span>
       </v-col>
       <v-spacer></v-spacer>
       <v-col style="text-align: right" cols="3">
-        <v-btn large @click="dialog=true">New App</v-btn>
+        <v-btn large @click="dialog=true">New RemoteSync</v-btn>
       </v-col>
     </v-row>
     <!-- <v-row>
@@ -38,7 +38,7 @@
         <v-data-table
           item-key="spec.name"
           :headers="headers"
-          :items="apps"
+          :items="calcedAppPipelines"
           mobile-breakpoint="0"
           @click:row="click"
         >
@@ -53,7 +53,7 @@
         </v-data-table>
       </v-col>
     </v-row>
-    <app-form @close="close" :dialog="dialog"></app-form>
+    <remote-sync-form @close="close" :dialog="dialog"></remote-sync-form>
   </v-container>
 </template>
 
@@ -62,33 +62,28 @@ import Vue from 'vue'
 import Logo from '~/components/Logo.vue'
 import VuetifyLogo from '~/components/VuetifyLogo.vue'
 import { fetch } from "~/util/proxy";
-import AppForm from "~/components/AppForm.vue";
-import { AppsV1Api, Configuration, ConfigurationParameters, ModokiTsuzuDevV1alpha1Api, DevTsuzuModokiV1alpha1Application } from "@modoki-paas/kubernetes-fetch-client";
+import RemoteSyncForm from "~/components/RemoteSyncForm.vue";
+import { AppsV1Api, Configuration, ConfigurationParameters, ModokiTsuzuDevV1alpha1Api, DevTsuzuModokiV1alpha1AppPipeline, DevTsuzuModokiV1alpha1AppPipelineSpecBase } from "@modoki-paas/kubernetes-fetch-client";
 
 export default Vue.extend({
   components: {
     Logo,
     VuetifyLogo,
-    AppForm,
+    RemoteSyncForm,
   },
   data() {
     return {
       modokiApi: undefined as (ModokiTsuzuDevV1alpha1Api | undefined),
       dialog: false,
-      apps: [] as DevTsuzuModokiV1alpha1Application[],
+      appPipelines: [] as DevTsuzuModokiV1alpha1AppPipeline[],
       headers: [
         {
           text: "Name",
           value: "metadata.name",
         },
         {
-          text: "Domain",
-          value: "status.domains",
-          align: 'right'
-        },
-        {
-          text: "Status",
-          value: "status.status",
+          text: "Base",
+          value: "baseString",
           align: 'right'
         },
         {
@@ -99,7 +94,6 @@ export default Vue.extend({
       ]
     }
   },
-
   async created() {
     const conf = new Configuration({
       fetchApi: fetch,
@@ -110,20 +104,6 @@ export default Vue.extend({
     this.modokiApi = modokiApi;
 
     await this.reload();
-    // this.apps[0].metadata.name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    // this.apps[0].status?.domains.push("foo.modoki.misw.jp");
-    // this.apps[0].status?.domains.push("bar.modoki.misw.jp");
-    // this.apps.push(this.apps[0]);
-    // this.apps.push(this.apps[0]);
-    // this.apps.push(this.apps[0]);
-    // this.apps.push(this.apps[0]);
-
-    // const appsClient = new AppsV1Api(conf);
-    // (await appsClient.listNamespacedDeployment({
-    //   namespace: "modoki-operator-system",
-    // })).items.forEach(dpl => {
-    //   console.log(JSON.stringify(dpl))
-    // })
   },
   mounted() {
     this.$nuxt.$emit(
@@ -134,25 +114,36 @@ export default Vue.extend({
       }
     )
   },
+  computed: {
+    calcedAppPipelines() {
+      return ((this as any).appPipelines as DevTsuzuModokiV1alpha1AppPipeline[]).map(ap => ({
+          ...ap,
+          baseString: (this as any).calcBase(ap.spec?.base),
+        }))
+    }
+  },
   methods: {
+    calcBase(b?: DevTsuzuModokiV1alpha1AppPipelineSpecBase): string {
+      return `${b?.github.owner}/${b?.github.repo}`
+    },
     click(item: any) {
       console.log(item);
-      this.$router.push(`/app/${item.metadata.name}`)
+      this.$router.push(`/apppipeline/${item.metadata.name}`)
     },
     openApp(domain: string) {
       window.open("http://" + domain, '_blank');
     },
     async reload() {
       if(this.modokiApi)
-        this.apps = (await this.modokiApi.listApplicationForAllNamespaces({})).items;
+        this.appPipelines = (await this.modokiApi.listAppPipelineForAllNamespaces({})).items;
     },
-    async close(app : DevTsuzuModokiV1alpha1Application | undefined) {
+    async close(ap : DevTsuzuModokiV1alpha1AppPipeline | undefined) {
       this.dialog = false;
-      if(app && this.modokiApi) {
-        console.log(app)
+      if(ap && this.modokiApi) {
+        console.log(ap)
 
-        await this.modokiApi.createNamespacedApplication({
-          body: app,
+        await this.modokiApi.createNamespacedAppPipeline({
+          body: ap,
           namespace: "default",
         })
 

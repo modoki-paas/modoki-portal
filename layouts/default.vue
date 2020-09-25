@@ -1,7 +1,7 @@
 <template>
   <v-app dark>
     <v-app-bar fixed app>
-      <v-btn icon>
+      <v-btn icon @click="drawer = !drawer">
         <v-icon>mdi-menu</v-icon>
       </v-btn>
       <v-btn icon v-if="prev" @click="routeToPrev">
@@ -26,6 +26,47 @@
         </v-tabs>
       </template>
     </v-app-bar>
+
+    <v-navigation-drawer
+      v-model="drawer"
+      absolute
+      temporary
+    >
+      <v-list-item>
+        <v-list-item-content>
+          <v-list-item-title class="title">
+            modoki portal
+          </v-list-item-title>
+        </v-list-item-content>
+      </v-list-item>
+
+      <v-divider></v-divider>
+
+      <v-list nav dense>
+        <v-list-item-group>
+          <v-list-item to="/">
+            <v-list-item-icon>
+              <v-icon>mdi-apps</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>Applications</v-list-item-title>
+          </v-list-item>
+
+          <v-list-item to="/remotesync">
+            <v-list-item-icon>
+              <v-icon>mdi-remote</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>RemoteSync</v-list-item-title>
+          </v-list-item>
+
+          <v-list-item to="/apppipeline">
+            <v-list-item-icon>
+              <v-icon>mdi-animation</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>AppPipeline</v-list-item-title>
+          </v-list-item>
+        </v-list-item-group>
+      </v-list>
+    </v-navigation-drawer>
     <v-main>
       <v-container>
         <nuxt />
@@ -51,6 +92,7 @@ export default Vue.extend({
       }[],
       tabsPath: "/",
       model: "",
+      drawer: false,
     }
   },
   created() {

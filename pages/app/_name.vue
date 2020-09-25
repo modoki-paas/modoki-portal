@@ -195,11 +195,7 @@ export default Vue.extend({
       namespace: namespace,
     })
     if(this.app.spec) {
-      this.app.spec.attributes = {};
-      this.app.spec.attributes["modoki.tsuzu.dev/oauth"] = "enabled";
-      this.app.spec.domains.push("modoki.misw.jp")
-
-      this.attributes = Object.entries(this.app.spec.attributes).map((arr: string[]) => ({
+      this.attributes = Object.entries(this.app.spec.attributes ?? {}).map((arr: string[]) => ({
         key: arr[0],
         value: arr[1],
       })) ?? [];
