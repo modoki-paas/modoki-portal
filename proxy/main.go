@@ -7,47 +7,23 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"strings"
 
 	"github.com/coreos/go-oidc"
+	"github.com/modoki-paas/modoki-portal/proxy/config"
 	"github.com/rs/cors"
 	"golang.org/x/oauth2"
 )
 
-type Config struct {
-	ClusterAddress     string
-	CAData             string
-	ClientID           string
-	ClientSecret       string
-	Scopes             []string
-	RedirectURL        string
-	IssuerURL          string
-	SessionStoreSecret string
-	StaticFilesDir     string
-	ReverseProxy       string
-	Local              bool
-}
+type Config = config.Config
 
 func initConfig() *Config {
-	var config Config
+	config, err := config.ReadConfig()
 
-	config.ClusterAddress = os.Getenv("K8S_CLUSTER_ADDRESS")
-	config.CAData = os.Getenv("K8S_CERTIFICATE_AUTHORITY_DATA")
-	config.ClientID = os.Getenv("OIDC_CLIENT_ID")
-	config.ClientSecret = os.Getenv("OIDC_CLIENT_SECRET")
-	config.Scopes = strings.Split(os.Getenv("OIDC_SCOPES"), ",")
-	config.RedirectURL = os.Getenv("OIDC_REDIRECT_URL")
-	config.IssuerURL = os.Getenv("OIDC_ISSUER_URL")
-	config.SessionStoreSecret = os.Getenv("SESSION_STORE_SECRET")
-	config.StaticFilesDir = os.Getenv("STATIC_FILE_SERVING")
-	config.ReverseProxy = os.Getenv("REVERSE_PROXY")
-	config.Local = os.Getenv("LOCAL") != ""
-
-	if config.SessionStoreSecret == "" {
-		config.SessionStoreSecret = "very-secure-secret"
+	if err != nil {
+		panic(err)
 	}
 
-	return &config
+	return config
 }
 
 type Authenticator struct {
@@ -90,6 +66,10 @@ func main() {
 	mux.HandleFunc("/proxy", h.proxyHandler)
 	mux.HandleFunc("/login", h.loginHandler)
 	mux.HandleFunc("/callback", h.callbackHandler)
+	mux.HandleFunc("/github/login", h.loginGitHub)
+	mux.HandleFunc("/github/callback", h.callbackGitHub)
+	mux.HandleFunc("/github/installations", h.listInstallations)
+	mux.HandleFunc("/github/repositories", h.listRepositories)
 
 	if len(config.StaticFilesDir) != 0 {
 		mux.Handle("/", http.FileServer(http.Dir(config.StaticFilesDir)))

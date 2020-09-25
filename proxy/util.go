@@ -1,6 +1,13 @@
 package main
 
-import "github.com/gorilla/sessions"
+import (
+	"crypto/rand"
+	"encoding/base64"
+	"io"
+	"io/ioutil"
+
+	"github.com/gorilla/sessions"
+)
 
 func getParam(sess *sessions.Session, key string) string {
 	v, ok := sess.Values[key]
@@ -16,4 +23,14 @@ func getParam(sess *sessions.Session, key string) string {
 	}
 
 	return str
+}
+
+func randomState() string {
+	b, err := ioutil.ReadAll(io.LimitReader(rand.Reader, 4))
+
+	if err != nil {
+		panic(err)
+	}
+
+	return base64.StdEncoding.EncodeToString(b)
 }

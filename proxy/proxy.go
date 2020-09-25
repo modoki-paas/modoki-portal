@@ -1,17 +1,18 @@
 package main
 
 import (
-	"bytes"
+	"fmt"
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 )
 
 type Request struct {
 	Method  string            `json:"method"`
 	URL     string            `json:"url"`
 	Headers map[string]string `json:"headers"`
-	Body    []byte            `json:"body"`
+	Body    string            `json:"body"`
 }
 
 func (r *Request) parseURL() (*url.URL, error) {
@@ -43,8 +44,11 @@ func (p *Proxy) Run(rawReq *Request) (*http.Response, error) {
 		return nil, err
 	}
 	url.Path = path.Join(url.Path, innerURL.Path)
+	url.RawQuery = innerURL.Query().Encode()
 
-	req, err := http.NewRequest(rawReq.Method, url.String(), bytes.NewReader(rawReq.Body))
+	fmt.Println(url.String())
+
+	req, err := http.NewRequest(rawReq.Method, url.String(), strings.NewReader(rawReq.Body))
 
 	if err != nil {
 		return nil, err

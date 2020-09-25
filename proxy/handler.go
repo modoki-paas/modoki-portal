@@ -14,6 +14,8 @@ import (
 
 	"github.com/coreos/go-oidc"
 	"github.com/gorilla/sessions"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/github"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd/api"
@@ -27,6 +29,8 @@ type handler struct {
 	cfg       *Config
 	store     *sessions.CookieStore
 	transport http.RoundTripper
+
+	github *oauth2.Config
 }
 
 func newHandler(cfg *Config) (*handler, error) {
@@ -35,8 +39,14 @@ func newHandler(cfg *Config) (*handler, error) {
 	h := &handler{
 		cfg:   cfg,
 		store: store,
+		github: &oauth2.Config{
+			ClientID:     cfg.GitHub.ClientID,
+			ClientSecret: cfg.GitHub.ClientSecret,
+			Endpoint:     github.Endpoint,
+		},
 	}
 	gob.Register(map[string]interface{}{})
+	gob.Register(&oauth2.Token{})
 
 	var tlsConf *tls.Config
 	if len(cfg.CAData) != 0 {
