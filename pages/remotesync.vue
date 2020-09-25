@@ -71,33 +71,31 @@ export default Vue.extend({
     VuetifyLogo,
     RemoteSyncForm,
   },
-  data() {
-    return {
-      modokiApi: undefined as (ModokiTsuzuDevV1alpha1Api | undefined),
-      dialog: false,
-      remoteSyncs: [] as DevTsuzuModokiV1alpha1RemoteSync[],
-      headers: [
-        {
-          text: "Name",
-          value: "metadata.name",
-        },
-        {
-          text: "Application Name",
-          value: "spec.applicationRef.name",
-          align: 'right'
-        },
-        {
-          text: "Base",
-          value: "baseString",
-          align: 'right'
-        },
-        {
-          text: "Actions",
-          value: "actions",
-          align: 'right'
-        },
-      ]
-    }
+  data: {
+    modokiApi: undefined as (ModokiTsuzuDevV1alpha1Api | undefined),
+    dialog: false,
+    remoteSyncs: [] as DevTsuzuModokiV1alpha1RemoteSync[],
+    headers: [
+      {
+        text: "Name",
+        value: "metadata.name",
+      },
+      {
+        text: "Application Name",
+        value: "spec.applicationRef.name",
+        align: 'right'
+      },
+      {
+        text: "Base",
+        value: "baseString",
+        align: 'right'
+      },
+      {
+        text: "Actions",
+        value: "actions",
+        align: 'right'
+      },
+    ]
   },
   async created() {
     const conf = new Configuration({
@@ -106,9 +104,9 @@ export default Vue.extend({
 
     const modokiApi = new ModokiTsuzuDevV1alpha1Api(conf);
 
-    this.modokiApi = modokiApi;
+    (this as any).modokiApi = modokiApi;
 
-    await this.reload();
+    await (this as any).reload();
     // this.apps[0].metadata.name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     // this.apps[0].status?.domains.push("foo.modoki.misw.jp");
     // this.apps[0].status?.domains.push("bar.modoki.misw.jp");
@@ -135,9 +133,9 @@ export default Vue.extend({
   },
   computed: {
     calcedRemoteSyncs() {
-      return this.remoteSyncs.map(rs => ({
+      return this.remoteSyncs.map((rs: DevTsuzuModokiV1alpha1RemoteSync) => ({
           ...rs,
-          baseString: this.calcBase(rs.spec?.base),
+          baseString: (this as any).calcBase(rs.spec?.base),
         }))
     }
   },
@@ -176,16 +174,16 @@ export default Vue.extend({
         this.remoteSyncs = (await this.modokiApi.listRemoteSyncForAllNamespaces({})).items;
     },
     async close(rs : DevTsuzuModokiV1alpha1RemoteSync | undefined) {
-      this.dialog = false;
-      if(rs && this.modokiApi) {
+      (this as any).dialog = false;
+      if(rs && (this as any).modokiApi) {
         console.log(rs)
 
-        await this.modokiApi.createNamespacedRemoteSync({
+        await (this as any).modokiApi.createNamespacedRemoteSync({
           body: rs,
           namespace: "default",
         })
 
-        await this.reload();
+        await (this as any).reload();
       }
     },
   }
