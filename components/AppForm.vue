@@ -115,17 +115,16 @@ export default Vue.extend({
     },
     minus() {
       this.attributes.pop();
+    },
+    reset() {
+      if(this.$refs.form)
+        (this.$refs.form as any).reset();
     }
   },
   watch: {
     dialog: function(after: boolean, before: boolean) {
       if(!before && after) {
-        this.name = "";
-        this.domains = "";
-        this.image = "";
-        this.command = "";
-        this.args = "";
-        this.attributes = [];
+        this.reset()
       }
     }
   }

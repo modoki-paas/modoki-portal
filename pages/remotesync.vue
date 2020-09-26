@@ -63,6 +63,7 @@ import Logo from '~/components/Logo.vue'
 import VuetifyLogo from '~/components/VuetifyLogo.vue'
 import { fetch } from "~/util/proxy";
 import RemoteSyncForm from "~/components/RemoteSyncForm.vue";
+import { calcBase, openApp } from "~/util/remoteSyncUtil";
 import { AppsV1Api, Configuration, ConfigurationParameters, ModokiTsuzuDevV1alpha1Api, DevTsuzuModokiV1alpha1RemoteSync, DevTsuzuModokiV1alpha1RemoteSyncSpecBase, DevTsuzuModokiV1alpha1RemoteSyncSpec } from "@modoki-paas/kubernetes-fetch-client";
 
 export default Vue.extend({
@@ -71,31 +72,33 @@ export default Vue.extend({
     VuetifyLogo,
     RemoteSyncForm,
   },
-  data: {
-    modokiApi: undefined as (ModokiTsuzuDevV1alpha1Api | undefined),
-    dialog: false,
-    remoteSyncs: [] as DevTsuzuModokiV1alpha1RemoteSync[],
-    headers: [
-      {
-        text: "Name",
-        value: "metadata.name",
-      },
-      {
-        text: "Application Name",
-        value: "spec.applicationRef.name",
-        align: 'right'
-      },
-      {
-        text: "Base",
-        value: "baseString",
-        align: 'right'
-      },
-      {
-        text: "Actions",
-        value: "actions",
-        align: 'right'
-      },
-    ]
+  data() {
+    return {
+      modokiApi: undefined as (ModokiTsuzuDevV1alpha1Api | undefined),
+      dialog: false as boolean,
+      remoteSyncs: [] as DevTsuzuModokiV1alpha1RemoteSync[],
+      headers: [
+        {
+          text: "Name",
+          value: "metadata.name",
+        },
+        {
+          text: "Application Name",
+          value: "spec.applicationRef.name",
+          align: 'right'
+        },
+        {
+          text: "Base",
+          value: "baseString",
+          align: 'right'
+        },
+        {
+          text: "Actions",
+          value: "actions",
+          align: 'right'
+        },
+      ] as {text: string; value: string, align?: string}[]
+    }
   },
   async created() {
     const conf = new Configuration({
@@ -135,39 +138,17 @@ export default Vue.extend({
     calcedRemoteSyncs() {
       return this.remoteSyncs.map((rs: DevTsuzuModokiV1alpha1RemoteSync) => ({
           ...rs,
-          baseString: (this as any).calcBase(rs.spec?.base),
+          baseString: calcBase(rs.spec?.base),
         }))
     }
   },
   methods: {
-    calcBase(b?: DevTsuzuModokiV1alpha1RemoteSyncSpecBase): string {
-      if(!b) {
-        return ""
-      }
-      let ref = b.github.sha;
-
-      if (!ref && b.github.pullRequest) {
-        ref = `#${b.github.pullRequest}`
-      }
-      if (!ref) {
-        ref = b.github.branch ?? "master"
-      }
-
-      return `${b.github.owner}/${b.github.repo}(${ref})`
-    },
     click(item: any) {
       console.log(item);
       this.$router.push(`/app/${item.spec.applicationRef.name}`)
     },
     openApp(spec: DevTsuzuModokiV1alpha1RemoteSyncSpec) {
-      const gh = spec.base.github;
-      if (gh.sha) {
-        window.open(`http://github.com/${gh.owner}/${gh.repo}/tree/${gh.sha}`, '_blank');
-      } else if(gh.pullRequest) {
-        window.open(`http://github.com/${gh.owner}/${gh.repo}/pull/${gh.pullRequest}`, '_blank');
-      } else {
-        window.open(`http://github.com/${gh.owner}/${gh.repo}/tree/${gh.branch ?? "master"}`, '_blank');
-      }
+      openApp(spec)
     },
     async reload() {
       if(this.modokiApi)

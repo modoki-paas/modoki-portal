@@ -109,14 +109,11 @@
         </v-row>
       </v-container>
     </v-tab-item>
+    <v-tab-item value="pods">
+      <pods :pods="pods"></pods>
+    </v-tab-item>
     <v-tab-item value="remote">
-      <v-container v-if="app !== null">
-        <v-row>
-          <v-col cols="12">
-            <span class="text-h4">Spec</span>
-          </v-col>
-        </v-row>
-      </v-container>
+      <remote-sync :rs="remoteSync"></remote-sync>
     </v-tab-item>
   </v-tabs-items>
 </template>
@@ -125,8 +122,10 @@
 import Vue from 'vue'
 import Logo from '~/components/Logo.vue'
 import VuetifyLogo from '~/components/VuetifyLogo.vue'
+import Pods from '~/components/Pods.vue'
+import RemoteSync from '~/components/RemoteSync.vue'
 import { fetch } from "~/util/proxy";
-import { CoreV1Api, AppsV1Api, Configuration, ConfigurationParameters, ModokiTsuzuDevV1alpha1Api, DevTsuzuModokiV1alpha1Application } from "@modoki-paas/kubernetes-fetch-client";
+import { CoreV1Api, AppsV1Api, Configuration, ConfigurationParameters, V1Pod, ModokiTsuzuDevV1alpha1Api, DevTsuzuModokiV1alpha1Application, DevTsuzuModokiV1alpha1RemoteSync } from "@modoki-paas/kubernetes-fetch-client";
 
 const namespace = "default";
 
@@ -141,38 +140,47 @@ export default Vue.extend({
   data() {
     return {
       tab: "info",
-      app: null,
-      attributes: {},
-    } as {
-      tab: string;
-      app: DevTsuzuModokiV1alpha1Application | null,
-      attributes: {key: string; value: string}[];
+      app: null as DevTsuzuModokiV1alpha1Application | null,
+      attributes: [] as {key: string; value: string}[],
+      pods: [] as V1Pod[],
+      basePath: `/app/${this.$route.params.name}`,
+      modokiApi:       null as (ModokiTsuzuDevV1alpha1Api | null),
+      appsApi: null as (AppsV1Api | null),
+      coreApi: null as (CoreV1Api | null),
+      remoteSync: null as (DevTsuzuModokiV1alpha1RemoteSync | null),
     }
   },
   beforeUpdate() {
     console.log(this.$route.hash);
   },
   async mounted() {
-    if(this.$route.hash.length === 0) {
-      this.$router.push(`${this.$route.path}#info`)
-    }
+    const tab = this.$route.hash;
+    this.tab = tab.length ? tab.substr(1) : "info";
+    console.log(this.$route.params)
 
     this.$nuxt.$emit(
       "headerInfo", {
         title: this.$route.params.name ?? "Loading...",
         prev: ()=> {
-          this.$router.push("/")
+          this.$router.back()
         },
         path: this.$route.path,
         tabs: [{
           name: "Info",
-          key: "info",
+          path: `${this.basePath}`,
+          hash: ""
+        }, {
+          name: "Pods",
+          path: `${this.basePath}`,
+          hash: "#pods"
         }, {
           name: "Remote",
-          key: "remote",
+          path: `${this.basePath}`,
+          hash: "#remote"
         }, {
           name: "Log",
-          key: "log",
+          path: `${this.basePath}`,
+          hash: "#log"
         }],
       }
     )
@@ -186,36 +194,17 @@ export default Vue.extend({
       fetchApi: fetch,
     })
 
-    const modokiApi = new ModokiTsuzuDevV1alpha1Api(conf);
-    const appsApi = new AppsV1Api(conf);
-    const coreApi = new CoreV1Api(conf);
+    this.modokiApi = new ModokiTsuzuDevV1alpha1Api(conf);
+    this.appsApi = new AppsV1Api(conf);
+    this.coreApi = new CoreV1Api(conf);
 
-    this.app = await modokiApi.readNamespacedApplication({
+    this.app = await this.modokiApi.readNamespacedApplication({
       name: this.$route.params.name,
       namespace: namespace,
     })
-    if(this.app.spec) {
-      this.attributes = Object.entries(this.app.spec.attributes ?? {}).map((arr: string[]) => ({
-        key: arr[0],
-        value: arr[1],
-      })) ?? [];
-      console.log(this.attributes);
 
-      if(this.app.status) {
-        const deployments = this.app.status.resources.filter(x => x.apiVersion === "apps/v1" && x.kind === "Deployment");
-
-        if (deployments.length) {
-          const dply = await appsApi.readNamespacedDeployment({
-            name: deployments[0].name,
-            namespace: deployments[0].namespace ?? this.app.metadata?.namespace ?? "",
-          })
-
-
-
-          // dply.spec.selector.matchLabels
-        }
-      }
-    }
+    await this.listPods()
+    await this.getRemoteSync()
   },
   methods: {
     openApp(domain: string) {
@@ -223,15 +212,29 @@ export default Vue.extend({
     },
     selectTab(name: string) {
       // this.$data.tab = name
+    },
+    async listPods() {
+      if(this.app?.spec) {
+        this.pods = (await this.coreApi!.listNamespacedPod({
+          labelSelector: `modoki-app=${this.app.metadata?.name}`,
+          namespace: this.app.metadata?.namespace ?? namespace,
+        })).items
+      }
+    },
+    async getRemoteSync() {
+      const rss = (await this.modokiApi!.listNamespacedRemoteSync({
+        namespace,
+      })).items.filter(rs => rs.spec?.applicationRef.name === this.app!.metadata!.name);
+      if(rss.length) {
+        this.remoteSync = rss[0];
+      }
     }
   },
   watch: {
     $route () {
-      if(this.$route.hash.length === 0) {
-        this.$router.push(`${this.$route.path}#info`)
-      }
-
-      this.tab = this.$route.hash.substring(1)
+      const tab = this.$route.hash;
+      this.tab = tab.length ? tab.substr(1) : "info";
+      console.log(tab)
     }
   }
 })

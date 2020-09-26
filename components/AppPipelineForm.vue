@@ -3,7 +3,7 @@
     <v-form ref="form" v-model="valid">
     <v-card>
       <v-card-title>
-        <span class="headline">New RemoteSync</span>
+        <span class="headline">New AppPipeline</span>
       </v-card-title>
       <v-card-text>
         <v-container>
@@ -12,18 +12,6 @@
               <v-text-field v-model="name" label="Name" required :rules="[inputtedRule]
               "></v-text-field>
             </v-col>
-            <v-col cols="12">
-              <v-select
-                :items="applicationNames"
-                :disabled="applicationNames.length === 0"
-                label="Application"
-                required
-                v-model="appName"
-                :rules="[selectedRule]"
-              ></v-select>
-            </v-col>
-
-
 
             <v-col cols="12" sm="6">
               <v-select
@@ -47,27 +35,40 @@
             </v-col>
 
             <v-col cols="12">
-              <v-radio-group v-model="mode" row :rules="[selectedRule]">
-                <v-radio label="Branch" value="branch"></v-radio>
-                <v-radio label="Pull Request" value="pr"></v-radio>
-                <v-radio label="Revision" value="sha"></v-radio>
-              </v-radio-group>
-            </v-col>
-
-            <v-col cols="12">
-              <v-text-field
-                :label="githubBaseModeLabel"
-                :type="mode==='pr' ? 'number' : undefined"
-                :rules="mode==='pr' ? [integer] : undefined"
-                :prepend-icon="mode==='pr' ? 'mdi-pound' : undefined"
-              >
-              </v-text-field>
-            </v-col>
-
-            <v-col cols="12">
               <v-text-field v-model="subPath" label="Sub Path"></v-text-field>
             </v-col>
 
+            <v-col cols="12">
+              <v-text-field v-model="command" label="Commands" hint="separated by comma"></v-text-field>
+            </v-col>
+            <v-col cols="12">
+              <v-text-field v-model="args" label="Args" hint="separated by comma"></v-text-field>
+            </v-col>
+
+            <v-col cols="12">
+              <v-row>
+                <v-col>
+                <span class="headline text-subtitle-1">Attributes</span>
+                </v-col>
+                <v-spacer></v-spacer>
+                <v-btn icon @click="minus">
+                  <v-icon>mdi-minus</v-icon>
+                </v-btn>
+                <v-btn icon @click="plus">
+                  <v-icon>mdi-plus</v-icon>
+                </v-btn>
+              </v-row>
+            </v-col>
+            <v-col cols="12" class="py-0">
+              <v-row v-for="attr in attributes" :key="attr.index">
+                <v-col class="py-0" cols="12" sm="12" md="6">
+                  <v-text-field class="pt-1" v-model="attr.key" label="Key"></v-text-field>
+                </v-col>
+                <v-col class="py-0" cols="12" sm="12" md="6">
+                  <v-text-field class="pt-1" v-model="attr.value" label="Value"></v-text-field>
+                </v-col>
+              </v-row>
+            </v-col>
           </v-row>
         </v-container>
       </v-card-text>
@@ -89,7 +90,7 @@ import {
   ModokiTsuzuDevV1alpha1Api,
   Configuration,
   ConfigurationParameters,
-  DevTsuzuModokiV1alpha1RemoteSync
+  DevTsuzuModokiV1alpha1AppPipeline
 } from "@modoki-paas/kubernetes-fetch-client"
 import {Installation, Repository, listInstallations, listRepositories} from "~/util/installations";
 
@@ -101,17 +102,16 @@ export default Vue.extend({
   },
   data() {
     return {
-      mode: "branch",
-      modokiApi: undefined as (ModokiTsuzuDevV1alpha1Api | undefined),
-      applications: [] as DevTsuzuModokiV1alpha1Application[],
       valid: false,
       name: "",
       installations: [] as Installation[],
       repositories: [] as Repository[],
       owner: "",
       repository: "",
-      appName: "",
       subPath: "",
+      command: "",
+      args: "",
+      attributes: [] as {index: number; key: string; value: string}[],
       inputtedRule: (value: any) => !!value || "Cannot be empty",
       selectedRule: (value: any) => !!value || "選択してください",
       integer: (value: string) => /^[1-9][0-9]*$/.test(value) && value.length < 9 || "Invalid Number"
@@ -122,11 +122,7 @@ export default Vue.extend({
       fetchApi: fetch,
     })
 
-    const modokiApi = new ModokiTsuzuDevV1alpha1Api(conf);
-    this.modokiApi = modokiApi;
-
     await this.getInstallation();
-    await this.getApplications();
   },
   computed: {
     owners() {
@@ -135,18 +131,6 @@ export default Vue.extend({
     repositoriesNames() {
       return ((this as any).repositories as Repository[]).map(r => r.name);
     },
-    applicationNames() {
-      return ((this as any).applications as DevTsuzuModokiV1alpha1Application[]).map(app => app.metadata?.name).filter(x => x);
-    },
-    githubBaseModeLabel() {
-      if(this.mode === "branch") {
-        return "Branch Name"
-      }else if(this.mode === "pr") {
-        return "Pull Request Number"
-      }else {
-        return "Commit Hash"
-      }
-    }
   },
   methods: {
     async getInstallation() {
@@ -160,22 +144,24 @@ export default Vue.extend({
         this.repositories = await listRepositories(installationID);
       }
     },
-    async getApplications() {
-      this.applications = (await this.modokiApi!.listNamespacedApplication({
-        namespace: namespace,
-      })).items;
-    },
-    parseApplication(): DevTsuzuModokiV1alpha1RemoteSync {
+    parseApplication(): DevTsuzuModokiV1alpha1AppPipeline {
+      const attributes = Object.fromEntries(this.attributes.map(m => [m.key, m.value]));
+
       return {
         apiVersion: "modoki.tsuzu.dev/v1alpha1",
-        kind: "RemoteSync",
+        kind: "AppPipeline",
         metadata: {
           name: this.name,
           namespace: namespace,
         },
         spec: {
-          applicationRef: {
-            name: this.appName,
+          domainBase: "*.modoki.misw.jp",
+          applicationTemplate: {
+            spec: {
+              args: this.args?.length ? this.args.split(",") : undefined,
+              command: this.command?.length ? this.command.split(",") : undefined,
+              attributes: this.attributes?.length ? attributes : undefined,
+            }
           },
           base: {
             github: {
@@ -183,7 +169,7 @@ export default Vue.extend({
               repo: this.repository,
               secretName: "tsuzu",
             },
-            subPath: this.subPath.length ? this.subPath : undefined,
+            subPath: this.subPath?.length ? this.subPath : undefined,
           },
           image: {
             name: `registry.misw.jp/${namespace}/${this.name}`,
@@ -197,6 +183,16 @@ export default Vue.extend({
     },
     save() {
       this.$emit("close", this.parseApplication())
+    },
+    plus() {
+      this.attributes.push({
+        index: this.attributes.length,
+        key: "",
+        value: "",
+      })
+    },
+    minus() {
+      this.attributes.pop();
     },
     reset() {
       if(this.$refs.form)

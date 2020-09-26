@@ -17,9 +17,10 @@
         >
           <v-tab
             v-for="tab in tabs"
-            :key="tab.key"
-            :nuxt="true"
-            :to="{path: tabsPath, hash: `#${tab.key}`}"
+            :key="`${tab.path}#${tab.hash}`"
+            nuxt
+            exact
+            :to="{path: tab.path, hash: tab.hash}"
           >
           {{tab.name}}
           </v-tab>
@@ -88,7 +89,8 @@ export default Vue.extend({
       prev: undefined as (()=>{}) | undefined,
       tabs: [] as {
         name: string;
-        key: string;
+        path: string;
+        hash?: string;
       }[],
       tabsPath: "/",
       model: "",
@@ -99,7 +101,7 @@ export default Vue.extend({
     this.$nuxt.$on('headerInfo', this.setHeaderInfo);
   },
   methods: {
-    setHeaderInfo(prop: {title: string; prev?: ()=>{}; path: string; tabs: {name: string; key: string;}[]}) {
+    setHeaderInfo(prop: {title: string; prev?: ()=>{}; path: string; tabs: {name: string; path: string; hash?: string;}[]}) {
       this.title = prop.title;
       this.tabs = prop.tabs;
       this.prev = prop.prev;

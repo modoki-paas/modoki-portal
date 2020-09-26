@@ -6,7 +6,7 @@
       </v-col>
       <v-spacer></v-spacer>
       <v-col style="text-align: right" cols="3">
-        <v-btn large @click="dialog=true">New RemoteSync</v-btn>
+        <v-btn large @click="dialog=true">New AppPipeline</v-btn>
       </v-col>
     </v-row>
     <!-- <v-row>
@@ -53,7 +53,7 @@
         </v-data-table>
       </v-col>
     </v-row>
-    <remote-sync-form @close="close" :dialog="dialog"></remote-sync-form>
+    <app-pipeline-form @close="close" :dialog="dialog"></app-pipeline-form>
   </v-container>
 </template>
 
@@ -62,14 +62,14 @@ import Vue from 'vue'
 import Logo from '~/components/Logo.vue'
 import VuetifyLogo from '~/components/VuetifyLogo.vue'
 import { fetch } from "~/util/proxy";
-import RemoteSyncForm from "~/components/RemoteSyncForm.vue";
+import AppPipelineForm from "~/components/AppPipelineForm.vue";
 import { AppsV1Api, Configuration, ConfigurationParameters, ModokiTsuzuDevV1alpha1Api, DevTsuzuModokiV1alpha1AppPipeline, DevTsuzuModokiV1alpha1AppPipelineSpecBase } from "@modoki-paas/kubernetes-fetch-client";
 
 export default Vue.extend({
   components: {
     Logo,
     VuetifyLogo,
-    RemoteSyncForm,
+    AppPipelineForm,
   },
   data() {
     return {
