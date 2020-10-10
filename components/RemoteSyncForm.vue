@@ -129,14 +129,14 @@ export default Vue.extend({
     await this.getApplications();
   },
   computed: {
-    owners() {
-      return (this as any).installations.map((ins: Installation) => ins.account.login)
+    owners(): string[] {
+      return this.installations.map((ins: Installation) => ins.account.login)
     },
-    repositoriesNames() {
-      return ((this as any).repositories as Repository[]).map(r => r.name);
+    repositoriesNames(): string[] {
+      return (this.repositories as Repository[]).map(r => r.name);
     },
-    applicationNames() {
-      return ((this as any).applications as DevTsuzuModokiV1alpha1Application[]).map(app => app.metadata?.name).filter(x => x);
+    applicationNames(): (string | undefined)[] {
+      return (this.applications as DevTsuzuModokiV1alpha1Application[]).map(app => app.metadata?.name).filter(x => x);
     },
     githubBaseModeLabel() {
       if(this.mode === "branch") {

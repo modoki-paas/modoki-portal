@@ -64,6 +64,7 @@ import VuetifyLogo from '~/components/VuetifyLogo.vue'
 import { fetch } from "~/util/proxy";
 import AppPipelineForm from "~/components/AppPipelineForm.vue";
 import { AppsV1Api, Configuration, ConfigurationParameters, ModokiTsuzuDevV1alpha1Api, DevTsuzuModokiV1alpha1AppPipeline, DevTsuzuModokiV1alpha1AppPipelineSpecBase } from "@modoki-paas/kubernetes-fetch-client";
+import ModokiState from "~/store/modoki";
 
 export default Vue.extend({
   components: {
@@ -71,6 +72,7 @@ export default Vue.extend({
     VuetifyLogo,
     AppPipelineForm,
   },
+  props: {},
   data() {
     return {
       modokiApi: undefined as (ModokiTsuzuDevV1alpha1Api | undefined),
@@ -94,7 +96,7 @@ export default Vue.extend({
       ]
     }
   },
-  async created() {
+  async created(): Promise<void> {
     const conf = new Configuration({
       fetchApi: fetch,
     })
@@ -105,7 +107,7 @@ export default Vue.extend({
 
     await this.reload();
   },
-  mounted() {
+  mounted(): void {
     this.$nuxt.$emit(
       "headerInfo", {
         title: "modoki portal",
@@ -115,10 +117,10 @@ export default Vue.extend({
     )
   },
   computed: {
-    calcedAppPipelines() {
-      return ((this as any).appPipelines as DevTsuzuModokiV1alpha1AppPipeline[]).map(ap => ({
+    calcedAppPipelines(): (DevTsuzuModokiV1alpha1AppPipeline & {baseString: string})[] {
+      return (this.appPipelines as DevTsuzuModokiV1alpha1AppPipeline[]).map(ap => ({
           ...ap,
-          baseString: (this as any).calcBase(ap.spec?.base),
+          baseString: this.calcBase(ap.spec?.base),
         }))
     }
   },
@@ -126,25 +128,25 @@ export default Vue.extend({
     calcBase(b?: DevTsuzuModokiV1alpha1AppPipelineSpecBase): string {
       return `${b?.github.owner}/${b?.github.repo}`
     },
-    click(item: any) {
+    click(item: any): void {
       console.log(item);
       this.$router.push(`/apppipeline/${item.metadata.name}`)
     },
-    openApp(domain: string) {
+    openApp(domain: string): void {
       window.open("http://" + domain, '_blank');
     },
-    async reload() {
+    async reload(): Promise<void> {
       if(this.modokiApi)
         this.appPipelines = (await this.modokiApi.listAppPipelineForAllNamespaces({})).items;
     },
-    async close(ap : DevTsuzuModokiV1alpha1AppPipeline | undefined) {
+    async close(ap : DevTsuzuModokiV1alpha1AppPipeline | undefined): Promise<void> {
       this.dialog = false;
       if(ap && this.modokiApi) {
         console.log(ap)
 
         await this.modokiApi.createNamespacedAppPipeline({
           body: ap,
-          namespace: "default",
+          namespace: (this.$store.state.modoki as ModokiState).namespace,
         })
 
         await this.reload();

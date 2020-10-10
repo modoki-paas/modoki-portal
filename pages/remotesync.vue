@@ -107,9 +107,9 @@ export default Vue.extend({
 
     const modokiApi = new ModokiTsuzuDevV1alpha1Api(conf);
 
-    (this as any).modokiApi = modokiApi;
+    this.modokiApi = modokiApi;
 
-    await (this as any).reload();
+    await this.reload();
     // this.apps[0].metadata.name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     // this.apps[0].status?.domains.push("foo.modoki.misw.jp");
     // this.apps[0].status?.domains.push("bar.modoki.misw.jp");
@@ -135,7 +135,7 @@ export default Vue.extend({
     )
   },
   computed: {
-    calcedRemoteSyncs() {
+    calcedRemoteSyncs(): (DevTsuzuModokiV1alpha1RemoteSync & {baseString: string})[] {
       return this.remoteSyncs.map((rs: DevTsuzuModokiV1alpha1RemoteSync) => ({
           ...rs,
           baseString: calcBase(rs.spec?.base),
@@ -155,16 +155,16 @@ export default Vue.extend({
         this.remoteSyncs = (await this.modokiApi.listRemoteSyncForAllNamespaces({})).items;
     },
     async close(rs : DevTsuzuModokiV1alpha1RemoteSync | undefined) {
-      (this as any).dialog = false;
-      if(rs && (this as any).modokiApi) {
+      this.dialog = false;
+      if(rs && this.modokiApi) {
         console.log(rs)
 
-        await (this as any).modokiApi.createNamespacedRemoteSync({
+        await this.modokiApi.createNamespacedRemoteSync({
           body: rs,
           namespace: "default",
         })
 
-        await (this as any).reload();
+        await this.reload();
       }
     },
   }

@@ -96,22 +96,38 @@ import {Installation, Repository, listInstallations, listRepositories} from "~/u
 
 const namespace = "default"
 
+interface Data {
+  valid: boolean,
+  name: string,
+  installations: Installation[],
+  repositories: Repository[],
+  owner: string,
+  repository: string,
+  subPath: string,
+  command: string,
+  args: string,
+  attributes: {index: number; key: string; value: string}[],
+  inputtedRule: (value: any) => boolean | string,
+  selectedRule: (value: any) => boolean | string,
+  integer: (value: any) => boolean | string
+}
+
 export default Vue.extend({
   props: {
     dialog: Boolean,
   },
-  data() {
+  data(): Data {
     return {
       valid: false,
       name: "",
-      installations: [] as Installation[],
-      repositories: [] as Repository[],
+      installations: [],
+      repositories: [],
       owner: "",
       repository: "",
       subPath: "",
       command: "",
       args: "",
-      attributes: [] as {index: number; key: string; value: string}[],
+      attributes: [],
       inputtedRule: (value: any) => !!value || "Cannot be empty",
       selectedRule: (value: any) => !!value || "選択してください",
       integer: (value: string) => /^[1-9][0-9]*$/.test(value) && value.length < 9 || "Invalid Number"
@@ -125,18 +141,18 @@ export default Vue.extend({
     await this.getInstallation();
   },
   computed: {
-    owners() {
-      return (this as any).installations.map((ins: Installation) => ins.account.login)
+    owners(): string[] {
+      return this.installations.map((ins: Installation) => ins.account.login)
     },
-    repositoriesNames() {
-      return ((this as any).repositories as Repository[]).map(r => r.name);
+    repositoriesNames(): string[] {
+      return (this.repositories as Repository[]).map(r => r.name);
     },
   },
   methods: {
-    async getInstallation() {
+    async getInstallation(): Promise<void> {
       this.installations = await listInstallations();
     },
-    async getRepositories() {
+    async getRepositories(): Promise<void> {
       if(this.owner.length === 0 ) {
         this.repositories = [];
       }else {
@@ -178,34 +194,34 @@ export default Vue.extend({
         },
       }
     },
-    cancel() {
+    cancel(): void {
       this.$emit("close", undefined)
     },
-    save() {
+    save(): void {
       this.$emit("close", this.parseApplication())
     },
-    plus() {
+    plus(): void {
       this.attributes.push({
         index: this.attributes.length,
         key: "",
         value: "",
       })
     },
-    minus() {
+    minus(): void {
       this.attributes.pop();
     },
-    reset() {
+    reset(): void {
       if(this.$refs.form)
         (this.$refs.form as any).reset();
     }
   },
   watch: {
-    dialog: function(after: boolean, before: boolean) {
+    dialog: function(after: boolean, before: boolean): void {
       if(!before && after) {
         this.reset();
       }
     },
-    owner: async function(after: string, before: string) {
+    owner: async function(after: string, before: string): Promise<void> {
       if(before !== after) {
         await this.getRepositories();
       }

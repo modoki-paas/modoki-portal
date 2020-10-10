@@ -67,7 +67,7 @@ export default Vue.extend({
   },
   computed: {
     calcedPods() {
-      return ((this as any).pods as V1Pod[]).map(pod => ({
+      return (this.pods as V1Pod[]).map(pod => ({
           ...pod,
           ready: `${pod.status?.containerStatuses?.filter(c => c.ready).length ?? 0}/${pod.status?.containerStatuses?.length ?? 0}`,
         }))
