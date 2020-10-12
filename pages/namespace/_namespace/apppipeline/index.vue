@@ -64,7 +64,6 @@ import VuetifyLogo from '~/components/VuetifyLogo.vue'
 import { fetch } from "~/util/proxy";
 import AppPipelineForm from "~/components/AppPipelineForm.vue";
 import { AppsV1Api, Configuration, ConfigurationParameters, ModokiTsuzuDevV1alpha1Api, DevTsuzuModokiV1alpha1AppPipeline, DevTsuzuModokiV1alpha1AppPipelineSpecBase } from "@modoki-paas/kubernetes-fetch-client";
-import ModokiState from "~/store/modoki";
 
 export default Vue.extend({
   components: {
@@ -146,7 +145,7 @@ export default Vue.extend({
 
         await this.modokiApi.createNamespacedAppPipeline({
           body: ap,
-          namespace: (this.$store.state.modoki as ModokiState).namespace,
+          namespace: this.$route.params.namespace,
         })
 
         await this.reload();

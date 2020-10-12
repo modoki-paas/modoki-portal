@@ -4,6 +4,10 @@
       <v-col cols="3">
         <span class="text-h4">Apps</span>
       </v-col>
+      <v-spacer></v-spacer>
+      <v-col style="text-align: right" cols="3">
+        <v-btn large @click="dialog=true">New App</v-btn>
+      </v-col>
     </v-row>
     <!-- <v-row>
       <v-col cols="12">
@@ -49,6 +53,7 @@
         </v-data-table>
       </v-col>
     </v-row>
+    <app-form @close="close" :dialog="dialog"></app-form>
   </v-container>
 </template>
 
@@ -57,12 +62,14 @@ import Vue from 'vue'
 import Logo from '~/components/Logo.vue'
 import VuetifyLogo from '~/components/VuetifyLogo.vue'
 import { fetch } from "~/util/proxy";
-import { AppsV1Api, Configuration, ConfigurationParameters, ModokiTsuzuDevV1alpha1Api, DevTsuzuModokiV1alpha1Application } from "@modoki-paas/kubernetes-fetch-client";
+import AppForm from "~/components/AppForm.vue";
+import { AppsV1Api, Configuration, ConfigurationParameters, ModokiTsuzuDevV1alpha1Api, DevTsuzuModokiV1alpha1Application } from "@modoki-paas/kubernetes-fetch-client"
 
 export default Vue.extend({
   components: {
     Logo,
     VuetifyLogo,
+    AppForm,
   },
   data() {
     return {
@@ -121,10 +128,8 @@ export default Vue.extend({
   mounted() {
     this.$nuxt.$emit(
       "headerInfo", {
-        title: `${this.$route.params.name} Pipeline`,
-        prev: ()=> {
-          this.$router.push("/apppipeline")
-        },
+        title: "modoki portal",
+        prev: undefined,
         tabs: [],
       }
     )
@@ -138,12 +143,21 @@ export default Vue.extend({
       window.open("http://" + domain, '_blank');
     },
     async reload() {
-      console.log(`modoki.tsuzu.dev/app-pipeline=${this.$route.params.name}`);
-
       if(this.modokiApi)
-        this.apps = (await this.modokiApi.listApplicationForAllNamespaces({
-          labelSelector: `modoki.tsuzu.dev/app-pipeline=${this.$route.params.name}`
-        })).items;
+        this.apps = (await this.modokiApi.listApplicationForAllNamespaces({})).items;
+    },
+    async close(app : DevTsuzuModokiV1alpha1Application | undefined) {
+      this.dialog = false;
+      if(app && this.modokiApi) {
+        console.log(app)
+
+        await this.modokiApi.createNamespacedApplication({
+          body: app,
+          namespace: this.$route.params.namespace,
+        })
+
+        await this.reload();
+      }
     },
   }
 })

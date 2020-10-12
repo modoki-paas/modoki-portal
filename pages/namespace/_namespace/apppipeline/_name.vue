@@ -2,11 +2,7 @@
   <v-container>
     <v-row dense>
       <v-col cols="3">
-        <span class="text-h4">RemoteSync</span>
-      </v-col>
-      <v-spacer></v-spacer>
-      <v-col style="text-align: right" cols="3">
-        <v-btn large @click="dialog=true">New RemoteSync</v-btn>
+        <span class="text-h4">Apps</span>
       </v-col>
     </v-row>
     <!-- <v-row>
@@ -38,14 +34,14 @@
         <v-data-table
           item-key="spec.name"
           :headers="headers"
-          :items="calcedRemoteSyncs"
+          :items="apps"
           mobile-breakpoint="0"
           @click:row="click"
         >
           <template v-slot:[`item.actions`]="{ item }">
             <v-icon
               class="mr-2"
-              @click.stop="openApp(item.spec)"
+              @click.stop="openApp(item.spec.domains[0])"
             >
               mdi-open-in-new
             </v-icon>
@@ -53,7 +49,6 @@
         </v-data-table>
       </v-col>
     </v-row>
-    <remote-sync-form @close="close" :dialog="dialog"></remote-sync-form>
   </v-container>
 </template>
 
@@ -62,34 +57,31 @@ import Vue from 'vue'
 import Logo from '~/components/Logo.vue'
 import VuetifyLogo from '~/components/VuetifyLogo.vue'
 import { fetch } from "~/util/proxy";
-import RemoteSyncForm from "~/components/RemoteSyncForm.vue";
-import { calcBase, openApp } from "~/util/remoteSyncUtil";
-import { AppsV1Api, Configuration, ConfigurationParameters, ModokiTsuzuDevV1alpha1Api, DevTsuzuModokiV1alpha1RemoteSync, DevTsuzuModokiV1alpha1RemoteSyncSpecBase, DevTsuzuModokiV1alpha1RemoteSyncSpec } from "@modoki-paas/kubernetes-fetch-client";
+import { AppsV1Api, Configuration, ConfigurationParameters, ModokiTsuzuDevV1alpha1Api, DevTsuzuModokiV1alpha1Application } from "@modoki-paas/kubernetes-fetch-client";
 
 export default Vue.extend({
   components: {
     Logo,
     VuetifyLogo,
-    RemoteSyncForm,
   },
   data() {
     return {
       modokiApi: undefined as (ModokiTsuzuDevV1alpha1Api | undefined),
-      dialog: false as boolean,
-      remoteSyncs: [] as DevTsuzuModokiV1alpha1RemoteSync[],
+      dialog: false,
+      apps: [] as DevTsuzuModokiV1alpha1Application[],
       headers: [
         {
           text: "Name",
           value: "metadata.name",
         },
         {
-          text: "Application Name",
-          value: "spec.applicationRef.name",
+          text: "Domain",
+          value: "status.domains",
           align: 'right'
         },
         {
-          text: "Base",
-          value: "baseString",
+          text: "Status",
+          value: "status.status",
           align: 'right'
         },
         {
@@ -97,9 +89,10 @@ export default Vue.extend({
           value: "actions",
           align: 'right'
         },
-      ] as {text: string; value: string, align?: string}[]
+      ]
     }
   },
+
   async created() {
     const conf = new Configuration({
       fetchApi: fetch,
@@ -128,44 +121,27 @@ export default Vue.extend({
   mounted() {
     this.$nuxt.$emit(
       "headerInfo", {
-        title: "modoki portal",
-        prev: undefined,
+        title: `${this.$route.params.name} Pipeline`,
+        prev: ()=> {
+          this.$router.push("/apppipeline")
+        },
         tabs: [],
       }
     )
   },
-  computed: {
-    calcedRemoteSyncs(): (DevTsuzuModokiV1alpha1RemoteSync & {baseString: string})[] {
-      return this.remoteSyncs.map((rs: DevTsuzuModokiV1alpha1RemoteSync) => ({
-          ...rs,
-          baseString: calcBase(rs.spec?.base),
-        }))
-    }
-  },
   methods: {
     click(item: any) {
       console.log(item);
-      this.$router.push(`/app/${item.spec.applicationRef.name}`)
+      this.$router.push(`/app/${item.metadata.name}`)
     },
-    openApp(spec: DevTsuzuModokiV1alpha1RemoteSyncSpec) {
-      openApp(spec)
+    openApp(domain: string) {
+      window.open("http://" + domain, '_blank');
     },
     async reload() {
       if(this.modokiApi)
-        this.remoteSyncs = (await this.modokiApi.listRemoteSyncForAllNamespaces({})).items;
-    },
-    async close(rs : DevTsuzuModokiV1alpha1RemoteSync | undefined) {
-      this.dialog = false;
-      if(rs && this.modokiApi) {
-        console.log(rs)
-
-        await this.modokiApi.createNamespacedRemoteSync({
-          body: rs,
-          namespace: "default",
-        })
-
-        await this.reload();
-      }
+        this.apps = (await this.modokiApi.listApplicationForAllNamespaces({
+          labelSelector: `modoki.tsuzu.dev/app-pipeline=${this.$route.params.name}`
+        })).items;
     },
   }
 })

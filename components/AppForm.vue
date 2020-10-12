@@ -89,7 +89,7 @@ export default Vue.extend({
         kind: "Application",
         metadata: {
           name: this.name,
-          namespace: "default",
+          namespace: this.$route.params.namespace,
         },
         spec: {
           args: this.args.length ? this.args.split(",") : undefined,

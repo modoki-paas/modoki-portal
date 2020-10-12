@@ -128,6 +128,7 @@ func (h *handler) proxyHandler(rw http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		http.Error(rw, `{"message": "internal server error"}`, http.StatusInternalServerError)
+		log.Printf("internal server error: %+v", err)
 
 		return
 	}

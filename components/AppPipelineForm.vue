@@ -92,9 +92,7 @@ import {
   ConfigurationParameters,
   DevTsuzuModokiV1alpha1AppPipeline
 } from "@modoki-paas/kubernetes-fetch-client"
-import {Installation, Repository, listInstallations, listRepositories} from "~/util/installations";
-
-const namespace = "default"
+import {Installation, Repository, listInstallations, listRepositories} from "~/util/installations"
 
 interface Data {
   valid: boolean,
@@ -162,13 +160,14 @@ export default Vue.extend({
     },
     parseApplication(): DevTsuzuModokiV1alpha1AppPipeline {
       const attributes = Object.fromEntries(this.attributes.map(m => [m.key, m.value]));
+      const namespace = this.$route.params.namespace
 
       return {
         apiVersion: "modoki.tsuzu.dev/v1alpha1",
         kind: "AppPipeline",
         metadata: {
           name: this.name,
-          namespace: namespace,
+          namespace,
         },
         spec: {
           domainBase: "*.modoki.misw.jp",

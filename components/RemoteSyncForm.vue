@@ -91,9 +91,7 @@ import {
   ConfigurationParameters,
   DevTsuzuModokiV1alpha1RemoteSync
 } from "@modoki-paas/kubernetes-fetch-client"
-import {Installation, Repository, listInstallations, listRepositories} from "~/util/installations";
-
-const namespace = "default"
+import {Installation, Repository, listInstallations, listRepositories} from "~/util/installations"
 
 export default Vue.extend({
   props: {
@@ -162,7 +160,7 @@ export default Vue.extend({
     },
     async getApplications() {
       this.applications = (await this.modokiApi!.listNamespacedApplication({
-        namespace: namespace,
+        namespace: this.$route.params.namespace,
       })).items;
     },
     parseApplication(): DevTsuzuModokiV1alpha1RemoteSync {
@@ -171,7 +169,7 @@ export default Vue.extend({
         kind: "RemoteSync",
         metadata: {
           name: this.name,
-          namespace: namespace,
+          namespace: this.$route.params.namespace,
         },
         spec: {
           applicationRef: {
@@ -186,7 +184,7 @@ export default Vue.extend({
             subPath: this.subPath.length ? this.subPath : undefined,
           },
           image: {
-            name: `registry.misw.jp/${namespace}/${this.name}`,
+            name: `registry.misw.jp/${this.$route.params.namespace}/${this.name}`,
             secretName: "misw-registry",
           }
         },

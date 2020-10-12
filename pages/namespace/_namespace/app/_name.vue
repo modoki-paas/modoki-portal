@@ -127,8 +127,6 @@ import RemoteSync from '~/components/RemoteSync.vue'
 import { fetch } from "~/util/proxy";
 import { CoreV1Api, AppsV1Api, Configuration, ConfigurationParameters, V1Pod, ModokiTsuzuDevV1alpha1Api, DevTsuzuModokiV1alpha1Application, DevTsuzuModokiV1alpha1RemoteSync } from "@modoki-paas/kubernetes-fetch-client";
 
-const namespace = "default";
-
 export default Vue.extend({
   components: {
     Logo,
@@ -200,7 +198,7 @@ export default Vue.extend({
 
     this.app = await this.modokiApi.readNamespacedApplication({
       name: this.$route.params.name,
-      namespace: namespace,
+      namespace: this.$route.params.namespace,
     })
 
     await this.listPods()
@@ -217,13 +215,13 @@ export default Vue.extend({
       if(this.app?.spec) {
         this.pods = (await this.coreApi!.listNamespacedPod({
           labelSelector: `modoki-app=${this.app.metadata?.name}`,
-          namespace: this.app.metadata?.namespace ?? namespace,
+          namespace: this.app.metadata?.namespace ?? this.$route.params.namespace,
         })).items
       }
     },
     async getRemoteSync() {
       const rss = (await this.modokiApi!.listNamespacedRemoteSync({
-        namespace,
+        namespace: this.$route.params.namespace,
       })).items.filter(rs => rs.spec?.applicationRef.name === this.app!.metadata!.name);
       if(rss.length) {
         this.remoteSync = rss[0];

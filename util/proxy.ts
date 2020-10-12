@@ -15,7 +15,7 @@ export async function fetch(input: RequestInfo, init?: RequestInit): Promise<Res
     } as ProxiedRequest;
 
     return await window.fetch(
-      "http://localhost:8080/proxy",
+      "/proxy",
       {
         method: "POST",
         headers: {
